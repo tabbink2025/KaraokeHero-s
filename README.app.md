@@ -57,8 +57,11 @@ event just insert a row into the `events` table.
 
 ## Notes / next steps
 
-- The seeded YouTube IDs are placeholders (a few reliably embeddable videos
-  reused). Swap in real karaoke-video IDs in `lib/seed.ts` before the party.
+- Each song is seeded with a real karaoke (with-lyrics) YouTube video —
+  mostly Sing King's official "Karaoke Version" uploads, plus KaraFun and
+  Dutch karaoke channels for the Nederlandstalig tracks. If any video ever
+  stops embedding, swap its ID in `lib/seed.ts` and delete `karaoke.db` to
+  re-seed.
 - The moderation toggle is persisted but does not yet hold songs for
   approval (matching the validated prototype). Wiring a `pending` status +
   an approve button in admin is a small follow-up.
