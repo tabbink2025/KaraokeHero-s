@@ -1,0 +1,8 @@
+node_modules/
+.next/
+karaoke.db
+karaoke.db-*
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+server.log
