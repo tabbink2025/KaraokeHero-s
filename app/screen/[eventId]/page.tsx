@@ -1,11 +1,76 @@
 'use client';
 /* Big screen / TV view — large player, slim now-singing strip,
    compact up-next, QR pinned bottom-right. */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEventState, useAct, sel } from '@/components/useEvent';
 import { Icon, Wordmark, AvaStack, singerNames } from '@/components/ui';
+
+/* ---- YouTube IFrame API loader (once per page) ---- */
+declare global {
+  interface Window { YT?: any; onYouTubeIframeAPIReady?: () => void }
+}
+let ytReady: Promise<void> | null = null;
+function loadYT(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (window.YT?.Player) return Promise.resolve();
+  if (!ytReady) {
+    ytReady = new Promise<void>((res) => {
+      window.onYouTubeIframeAPIReady = () => res();
+      const t = document.createElement('script');
+      t.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(t);
+    });
+  }
+  return ytReady;
+}
+
+/* Player that auto-advances when the current video ends. */
+function Stage({ videoId, onEnded }: { videoId: string; onEnded: () => void }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<any>(null);
+  const endedRef = useRef<string>('');
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
+
+  // create the player once
+  useEffect(() => {
+    let cancelled = false;
+    loadYT().then(() => {
+      if (cancelled || !hostRef.current || playerRef.current) return;
+      playerRef.current = new window.YT.Player(hostRef.current, {
+        videoId,
+        width: '100%',
+        height: '100%',
+        host: 'https://www.youtube-nocookie.com',
+        playerVars: { autoplay: 1, rel: 0, modestbranding: 1, enablejsapi: 1 },
+        events: {
+          onReady: (e: any) => { try { e.target.playVideo(); } catch {} },
+          onStateChange: (e: any) => {
+            if (e.data === window.YT.PlayerState.ENDED) {
+              const vid = playerRef.current?.getVideoData?.()?.video_id || videoId;
+              if (endedRef.current === vid) return; // fire once per video
+              endedRef.current = vid;
+              onEndedRef.current();
+            }
+          },
+        },
+      });
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // swap video when the queue advances
+  useEffect(() => {
+    endedRef.current = '';
+    const p = playerRef.current;
+    if (p?.loadVideoById && videoId) p.loadVideoById(videoId);
+  }, [videoId]);
+
+  return <div ref={hostRef} />;
+}
 
 export default function ScreenPage() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -49,9 +114,7 @@ export default function ScreenPage() {
         <div className="tv-stage">
           <div className="player-frame">
             {started && song
-              ? <iframe key={videoId}
-                  src={'https://www.youtube-nocookie.com/embed/' + videoId + '?enablejsapi=1&autoplay=1&rel=0&modestbranding=1'}
-                  title={song.title} allow="autoplay; encrypted-media" allowFullScreen />
+              ? <Stage videoId={videoId} onEnded={() => current && act('markDone', { id: current.id })} />
               : <div className="tv-start">
                   <div style={{ textAlign: 'center', maxWidth: 520, padding: 20 }}>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}><Wordmark size="lg" /></div>
