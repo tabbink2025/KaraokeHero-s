@@ -2,15 +2,16 @@
 /* Solo Star — random solo pick with confirm */
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEvent, PhoneHead } from '@/components/participant/EventShell';
+import { useEvent, PhoneHead, VersionToggle } from '@/components/participant/EventShell';
 import { Icon, Diff, LangBadge } from '@/components/ui';
-import type { Song } from '@/lib/types';
+import type { Song, SongVersion } from '@/lib/types';
 
 export default function SoloStarPage() {
   const { eventId, me, act, toast } = useEvent();
   const router = useRouter();
   const [song, setSong] = useState<Song | null>(null);
   const [spinning, setSpinning] = useState(true);
+  const [version, setVersion] = useState<SongVersion>('karaoke');
 
   const reroll = useCallback(async () => {
     setSpinning(true);
@@ -23,7 +24,7 @@ export default function SoloStarPage() {
 
   async function confirm() {
     if (!song) return;
-    const r = await act('chooseSong', { songId: song.id, participantIds: [me.id], mode: 'solo-star' });
+    const r = await act('chooseSong', { songId: song.id, participantIds: [me.id], mode: 'solo-star', version });
     if (r.ok) {
       toast({ body: <span><b>{song.title}</b> added — you&apos;re #{r.position} up next</span> });
       router.push(`/event/${eventId}/queue`);
@@ -53,6 +54,11 @@ export default function SoloStarPage() {
                   </>}
             </div>
           </div>
+          {!spinning && song && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+              <VersionToggle value={version} song={song} onChange={setVersion} />
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}>
             <button className="btn btn-primary" disabled={spinning} onClick={confirm}><Icon name="plus" size={18} /> Add to queue</button>
             <button className="btn btn-outline" disabled={spinning} onClick={reroll}><Icon name="shuffle" size={18} /> Try another</button>

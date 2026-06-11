@@ -5,7 +5,7 @@ import React, { createContext, useContext, useEffect, useState, type ReactNode }
 import { useRouter } from 'next/navigation';
 import { useEventState, useAct, useMe, sel } from '@/components/useEvent';
 import { Icon, Wordmark, Avatar, partName } from '@/components/ui';
-import type { EventState, Participant, Song } from '@/lib/types';
+import type { EventState, Participant, Song, SongVersion } from '@/lib/types';
 
 interface ToastData { error?: boolean; body: ReactNode }
 
@@ -15,7 +15,21 @@ interface EventCtxValue {
   me: Participant;
   act: (type: string, payload?: Record<string, unknown>) => Promise<any>;
   toast: (t: ToastData) => void;
-  chooseSong: (song: Song) => void;
+  chooseSong: (song: Song, version?: SongVersion) => void;
+}
+
+/* Karaoke / Original segmented toggle, shared by song rows and the duet sheet. */
+export function VersionToggle({ value, onChange, song }: { value: SongVersion; onChange: (v: SongVersion) => void; song: Song }) {
+  const hasOriginal = !!song.originalVideoId;
+  return (
+    <div className="ver-toggle" role="group" aria-label="Song version">
+      <button type="button" className={'ver-opt' + (value === 'karaoke' ? ' on' : '')}
+        onClick={() => onChange('karaoke')}>Karaoke</button>
+      <button type="button" className={'ver-opt' + (value === 'original' ? ' on' : '')}
+        disabled={!hasOriginal} title={hasOriginal ? '' : 'No original available'}
+        onClick={() => onChange('original')}>Origineel</button>
+    </div>
+  );
 }
 
 const EventCtx = createContext<EventCtxValue | null>(null);
@@ -55,9 +69,10 @@ function Toast({ data, onDone }: { data: ToastData | null; onDone: () => void })
 function DuetSheet({ song, onClose }: { song: Song; onClose: () => void }) {
   const { state, me, act, toast } = useEvent();
   const router = useRouter();
+  const [version, setVersion] = useState<SongVersion>('karaoke');
 
   async function havePartner() {
-    const r = await act('chooseSong', { songId: song.id, participantIds: [me.id], mode: 'theme-choice' });
+    const r = await act('chooseSong', { songId: song.id, participantIds: [me.id], mode: 'theme-choice', version });
     onClose();
     toast(r.ok
       ? { body: <span><b>{song.title}</b> queued — grab your partner!</span> }
@@ -67,7 +82,7 @@ function DuetSheet({ song, onClose }: { song: Song; onClose: () => void }) {
     const others = state.participants.filter((p) => p.id !== me.id && p.name);
     const partner = others[Math.floor(Math.random() * others.length)];
     const ids = partner ? [me.id, partner.id] : [me.id];
-    const r = await act('chooseSong', { songId: song.id, participantIds: ids, mode: 'theme-choice' });
+    const r = await act('chooseSong', { songId: song.id, participantIds: ids, mode: 'theme-choice', version });
     onClose();
     toast(r.ok
       ? { body: <span>Matched with <b>{partner ? partner.name : 'a partner'}</b> for {song.title}!</span> }
@@ -84,7 +99,8 @@ function DuetSheet({ song, onClose }: { song: Song; onClose: () => void }) {
         <div className="grab" />
         <div style={{ marginBottom: 6 }}><span className="badge badge-duet">Duet</span></div>
         <h2 className="h-lg" style={{ margin: '4px 0 2px' }}>{song.title}</h2>
-        <p className="muted" style={{ margin: '0 0 18px', fontSize: 13.5 }}>{song.artist} · How do you want a partner?</p>
+        <p className="muted" style={{ margin: '0 0 14px', fontSize: 13.5 }}>{song.artist} · How do you want a partner?</p>
+        <div style={{ marginBottom: 16 }}><VersionToggle value={version} onChange={setVersion} song={song} /></div>
         <button className="opt-row" onClick={havePartner}>
           <span className="ic"><Icon name="users" size={20} /></span>
           <span className="tx"><h4>I already have a partner</h4><p>You&apos;ll sing together — bring them to the stage</p></span>
@@ -152,9 +168,9 @@ export default function EventShell({ eventId, children }: { eventId: string; chi
   }
 
   const toast = (t: ToastData) => setToastData(t);
-  const chooseSong = async (song: Song) => {
+  const chooseSong = async (song: Song, version: SongVersion = 'karaoke') => {
     if (song.type === 'duet') { setDuetSong(song); return; }
-    const r = await act('chooseSong', { songId: song.id, participantIds: [me.id], mode: 'theme-choice' });
+    const r = await act('chooseSong', { songId: song.id, participantIds: [me.id], mode: 'theme-choice', version });
     toast(r.ok
       ? { body: <span><b>{song.title}</b> added — you&apos;re #{r.position} up next</span> }
       : { error: true, body: r.message });

@@ -2,6 +2,7 @@ export type SongType = 'solo' | 'duet';
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type QueueMode = 'theme-choice' | 'solo-star' | 'dynamic-duet';
 export type QueueStatus = 'queued' | 'playing' | 'done' | 'skipped';
+export type SongVersion = 'karaoke' | 'original';
 
 export interface Theme {
   id: string;
@@ -18,6 +19,7 @@ export interface Song {
   themeId: string;
   type: SongType;
   youtubeVideoId: string;
+  originalVideoId: string;
   difficulty: Difficulty;
   language: string;
 }
@@ -36,6 +38,7 @@ export interface QueueItem {
   participantIds: string[];
   mode: QueueMode;
   status: QueueStatus;
+  version: SongVersion;
   createdAt: number;
 }
 

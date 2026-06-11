@@ -15,7 +15,7 @@ export async function POST(req: Request, { params }: { params: { eventId: string
         return NextResponse.json({ participant: S.join(eventId, p.name) });
       }
       case 'chooseSong':
-        return NextResponse.json(S.chooseSong(eventId, p.songId, p.participantIds, p.mode));
+        return NextResponse.json(S.chooseSong(eventId, p.songId, p.participantIds, p.mode, p.version));
       case 'randomSolo':
         return NextResponse.json({ song: S.randomSolo(eventId) });
       case 'joinDuetPool':

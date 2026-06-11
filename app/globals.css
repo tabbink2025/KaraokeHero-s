@@ -227,6 +227,16 @@ input { font-family: inherit; }
 .choose-btn:hover { filter: brightness(1.06); }
 .choose-btn.added { background: oklch(0.8 0.13 158 / 0.16); color: var(--easy); }
 
+/* karaoke / original version toggle */
+.ver-toggle { display: inline-flex; margin-top: 9px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.ver-opt {
+  border: 0; background: transparent; color: var(--text-mut);
+  font-size: 12px; font-weight: 700; padding: 6px 12px; transition: 0.14s; cursor: pointer;
+}
+.ver-opt + .ver-opt { border-left: 1px solid var(--line); }
+.ver-opt.on { background: var(--gold); color: oklch(0.2 0.04 60); }
+.ver-opt:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* sheet / modal */
 .sheet-scrim { position: fixed; inset: 0; background: oklch(0.06 0.02 320 / 0.66); backdrop-filter: blur(3px); z-index: 40; display: flex; align-items: flex-end; justify-content: center; animation: fade 0.2s ease; }
 .sheet {

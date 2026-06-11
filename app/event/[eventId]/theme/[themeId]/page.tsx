@@ -1,13 +1,16 @@
 'use client';
 /* Song selection within a theme */
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useEvent, PhoneHead } from '@/components/participant/EventShell';
+import { useEvent, PhoneHead, VersionToggle } from '@/components/participant/EventShell';
 import { sel } from '@/components/useEvent';
 import { Icon, THEME_ICON, TypeBadge, Diff, LangBadge } from '@/components/ui';
+import type { SongVersion } from '@/lib/types';
 
 export default function ThemeSongsPage() {
   const { themeId } = useParams<{ themeId: string }>();
   const { eventId, state, me, chooseSong } = useEvent();
+  const [versions, setVersions] = useState<Record<string, SongVersion>>({});
   const theme = state.themes.find((t) => t.id === themeId);
   if (!theme) return <div className="p-pad empty" style={{ margin: 20 }}>Theme not found.</div>;
 
@@ -31,6 +34,7 @@ export default function ThemeSongsPage() {
           <div className="song-list">
             {songs.map((s) => {
               const added = mineSongIds.has(s.id);
+              const ver = versions[s.id] ?? 'karaoke';
               return (
                 <div className="song-row" key={s.id}>
                   <div className="meta">
@@ -41,8 +45,11 @@ export default function ThemeSongsPage() {
                       <Diff d={s.difficulty} />
                       <LangBadge lang={s.language} />
                     </div>
+                    {s.type !== 'duet' && (
+                      <VersionToggle value={ver} song={s} onChange={(v) => setVersions((m) => ({ ...m, [s.id]: v }))} />
+                    )}
                   </div>
-                  <button className={'choose-btn' + (added ? ' added' : '')} disabled={added} onClick={() => chooseSong(s)}>
+                  <button className={'choose-btn' + (added ? ' added' : '')} disabled={added} onClick={() => chooseSong(s, ver)}>
                     {added ? <><Icon name="check" size={15} /> Queued</> : <><Icon name="plus" size={15} /> Choose</>}
                   </button>
                 </div>

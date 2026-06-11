@@ -27,6 +27,9 @@ export default function ScreenPage() {
   const upcoming = sel.upcoming(state).slice(0, 4);
   const playing = state.playback.isPlaying;
   const song = current ? sel.songById(state, current.songId) : null;
+  const videoId = song
+    ? (current?.version === 'original' && song.originalVideoId ? song.originalVideoId : song.youtubeVideoId)
+    : '';
   const joinUrlShort = joinUrl.replace(/^https?:\/\//, '');
 
   function start() {
@@ -46,8 +49,8 @@ export default function ScreenPage() {
         <div className="tv-stage">
           <div className="player-frame">
             {started && song
-              ? <iframe key={song.youtubeVideoId}
-                  src={'https://www.youtube-nocookie.com/embed/' + song.youtubeVideoId + '?enablejsapi=1&autoplay=1&rel=0&modestbranding=1'}
+              ? <iframe key={videoId}
+                  src={'https://www.youtube-nocookie.com/embed/' + videoId + '?enablejsapi=1&autoplay=1&rel=0&modestbranding=1'}
                   title={song.title} allow="autoplay; encrypted-media" allowFullScreen />
               : <div className="tv-start">
                   <div style={{ textAlign: 'center', maxWidth: 520, padding: 20 }}>
@@ -67,7 +70,7 @@ export default function ScreenPage() {
             <div className={'now-bar' + (playing ? '' : ' paused')}>
               <span className="eq"><i /><i /><i /><i /><i /></span>
               <div className="now-main">
-                <div className="eyebrow" style={{ color: 'var(--gold)' }}>{playing ? '● Now singing' : 'Up — press start'}</div>
+                <div className="eyebrow" style={{ color: 'var(--gold)' }}>{playing ? '● Now singing' : 'Up — press start'} · {current.version === 'original' ? 'Origineel' : 'Karaoke'}</div>
                 <div className="now-title">{song.title}</div>
                 <div className="now-artist">{song.artist}</div>
               </div>

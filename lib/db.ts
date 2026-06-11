@@ -27,6 +27,7 @@ function init(): Database.Database {
       themeId TEXT NOT NULL REFERENCES themes(id),
       type TEXT NOT NULL CHECK (type IN ('solo','duet')),
       youtubeVideoId TEXT NOT NULL,
+      originalVideoId TEXT NOT NULL DEFAULT '',
       difficulty TEXT NOT NULL CHECK (difficulty IN ('easy','medium','hard')),
       language TEXT NOT NULL
     );
@@ -40,6 +41,7 @@ function init(): Database.Database {
       participantIds TEXT NOT NULL,
       mode TEXT NOT NULL CHECK (mode IN ('theme-choice','solo-star','dynamic-duet')),
       status TEXT NOT NULL CHECK (status IN ('queued','playing','done','skipped')),
+      version TEXT NOT NULL DEFAULT 'karaoke',
       position INTEGER NOT NULL,
       createdAt INTEGER NOT NULL,
       finishedAt INTEGER
@@ -51,12 +53,19 @@ function init(): Database.Database {
     );
   `);
 
+  // migrate older DBs that predate version/originalVideoId columns
+  const cols = (t: string) => (db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map((c) => c.name);
+  if (!cols('songs').includes('originalVideoId'))
+    db.exec("ALTER TABLE songs ADD COLUMN originalVideoId TEXT NOT NULL DEFAULT ''");
+  if (!cols('queue_items').includes('version'))
+    db.exec("ALTER TABLE queue_items ADD COLUMN version TEXT NOT NULL DEFAULT 'karaoke'");
+
   const seedThemes = db.prepare(
     'INSERT OR IGNORE INTO themes (id, name, desc, icon, accent) VALUES (@id, @name, @desc, @icon, @accent)'
   );
   const seedSongs = db.prepare(
-    `INSERT OR IGNORE INTO songs (id, title, artist, themeId, type, youtubeVideoId, difficulty, language)
-     VALUES (@id, @title, @artist, @themeId, @type, @youtubeVideoId, @difficulty, @language)`
+    `INSERT OR IGNORE INTO songs (id, title, artist, themeId, type, youtubeVideoId, originalVideoId, difficulty, language)
+     VALUES (@id, @title, @artist, @themeId, @type, @youtubeVideoId, @originalVideoId, @difficulty, @language)`
   );
   db.transaction(() => {
     for (const t of THEMES) seedThemes.run(t);

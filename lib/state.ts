@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import { getDb } from './db';
-import type { EventState, Participant, QueueItem, Song, QueueMode } from './types';
+import type { EventState, Participant, QueueItem, Song, QueueMode, SongVersion } from './types';
 
 const genId = (p: string) => p + '_' + randomBytes(5).toString('hex');
 
@@ -72,13 +72,13 @@ function nextPosition(eventId: string): number {
   return r.m + 1;
 }
 
-function insertQueueItem(eventId: string, songId: string, participantIds: string[], mode: QueueMode): QueueItem {
+function insertQueueItem(eventId: string, songId: string, participantIds: string[], mode: QueueMode, version: SongVersion = 'karaoke'): QueueItem {
   const db = getDb();
-  const item: QueueItem = { id: genId('q'), eventId, songId, participantIds, mode, status: 'queued', createdAt: Date.now() };
+  const item: QueueItem = { id: genId('q'), eventId, songId, participantIds, mode, status: 'queued', version, createdAt: Date.now() };
   db.prepare(
-    `INSERT INTO queue_items (id, eventId, songId, participantIds, mode, status, position, createdAt)
-     VALUES (?, ?, ?, ?, ?, 'queued', ?, ?)`
-  ).run(item.id, eventId, songId, JSON.stringify(participantIds), mode, nextPosition(eventId), item.createdAt);
+    `INSERT INTO queue_items (id, eventId, songId, participantIds, mode, status, version, position, createdAt)
+     VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, ?)`
+  ).run(item.id, eventId, songId, JSON.stringify(participantIds), mode, version, nextPosition(eventId), item.createdAt);
   return item;
 }
 
@@ -110,11 +110,11 @@ export function join(eventId: string, name: string): Participant {
   return p;
 }
 
-export function chooseSong(eventId: string, songId: string, participantIds: string[], mode: QueueMode = 'theme-choice') {
+export function chooseSong(eventId: string, songId: string, participantIds: string[], mode: QueueMode = 'theme-choice', version: SongVersion = 'karaoke') {
   if (activeCountFor(eventId, participantIds[0]) >= MAX_ACTIVE_PER_PARTICIPANT) {
     return { ok: false as const, message: 'You already have 2 songs in the queue. Wait until one is sung!' };
   }
-  const item = insertQueueItem(eventId, songId, participantIds, mode);
+  const item = insertQueueItem(eventId, songId, participantIds, mode, version);
   broadcast(eventId);
   const position = queueFor(eventId).filter((q) => q.status === 'queued').findIndex((q) => q.id === item.id) + 1;
   return { ok: true as const, position, item };
@@ -192,12 +192,16 @@ function finishItem(eventId: string, id: string, status: 'done' | 'skipped') {
   const db = getDb();
   db.transaction(() => {
     db.prepare('UPDATE queue_items SET status = ?, finishedAt = ? WHERE id = ?').run(status, Date.now(), id);
-    db.prepare('UPDATE events SET isPlaying = 0 WHERE id = ?').run(eventId);
-    // auto-advance: promote next queued item
+    // auto-advance: promote next queued item and start playing it
     const next = db.prepare(
       "SELECT id FROM queue_items WHERE eventId = ? AND status = 'queued' ORDER BY position LIMIT 1"
     ).get(eventId) as { id: string } | undefined;
-    if (next) db.prepare("UPDATE queue_items SET status = 'playing' WHERE id = ?").run(next.id);
+    if (next) {
+      db.prepare("UPDATE queue_items SET status = 'playing' WHERE id = ?").run(next.id);
+      db.prepare('UPDATE events SET isPlaying = 1 WHERE id = ?').run(eventId);
+    } else {
+      db.prepare('UPDATE events SET isPlaying = 0 WHERE id = ?').run(eventId);
+    }
   })();
   broadcast(eventId);
 }
